@@ -1,0 +1,23 @@
+manifest:
+  self:
+    path: elerium
+
+  remotes:
+    - name: zephyrproject-rtos
+      url-base: https://github.com/zephyrproject-rtos
+
+  projects:
+    - name: zephyr
+      remote: zephyrproject-rtos
+      revision: main
+      import:
+        name-allowlist:
+          - cmsis
+          - hal_stm32
+          - tinycrypt
+          - tinicbor
+    - name: mcuboot
+      remote: zephyrproject-rtos
+      revision: fb2cf0ec3da3687b93f28e556ab682bdd4b85223
+      path: mcuboot
+
