@@ -1,0 +1,18 @@
+identifier: elerium
+name: Beechat Elerium NFC
+type: mcu
+arch: arm
+toolchain:
+  - zephyr
+  - gnuarmemb
+  - xtools
+ram: 40
+flash: 64
+supported:
+  - nvs
+  - pwm
+  - counter
+  - spi
+  - i2c
+  - adc
+vendor: beechat

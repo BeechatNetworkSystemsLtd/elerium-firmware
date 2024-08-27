@@ -1,0 +1,7 @@
+
+menu "Drivers"
+
+rsource "ntag5/Kconfig.ntag5"
+
+endmenu
+

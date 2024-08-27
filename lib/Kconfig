@@ -1,0 +1,17 @@
+
+config BEECHAT_ELERIUM_LIB
+    bool "Beechat Elerium Library"
+    default n
+    select EVENTS
+    help
+        Beechat Elerium Library
+
+if BEECHAT_ELERIUM_LIB
+
+    module = ELERIUM
+    module-str = elerium
+    source "subsys/logging/Kconfig.template.log_config"
+
+endif
+
+

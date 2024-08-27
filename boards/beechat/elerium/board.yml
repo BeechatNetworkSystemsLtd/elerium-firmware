@@ -1,0 +1,5 @@
+board:
+  name: elerium
+  vendor: beechat
+  socs:
+    - name: stm32l412xx

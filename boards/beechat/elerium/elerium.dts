@@ -1,0 +1,82 @@
+
+/dts-v1/;
+
+#include <st/l4/stm32l412X8.dtsi>
+#include <st/l4/stm32l412rbtx-pinctrl.dtsi>
+
+/ {
+    model = "Beechat Elerium Board";
+    compatible = "beechat,elerium";
+
+    chosen {
+        zephyr,sram = &sram0;
+        zephyr,flash = &flash0;
+    };
+
+    aliases {
+
+    };
+};
+
+&clk_lsi {
+    status = "okay";
+};
+
+&clk_msi {
+    status = "okay";
+};
+
+&rcc {
+    clocks = <&clk_msi>;
+    clock-frequency = <DT_FREQ_M(4)>;
+    ahb-prescaler = <1>;
+    apb1-prescaler = <1>;
+    apb2-prescaler = <1>;
+};
+
+&i2c1 {
+    pinctrl-0 = <&i2c1_scl_pb8 &i2c1_sda_pb7>;
+    pinctrl-names = "default";
+    clock-frequency = <I2C_BITRATE_FAST>;
+    status = "okay";
+
+    ntag: ntag@54 {
+        reg = <0x54>;
+        compatible = "nxp,ntag5";
+        ed-gpios = <&gpioa 0 GPIO_ACTIVE_LOW>;
+        status = "okay";
+    };
+};
+
+&rtc {
+    clocks = <&rcc STM32_CLOCK_BUS_APB1 0x10000000>, <&rcc STM32_SRC_LSI RTC_SEL(2)>;
+    status = "okay";
+};
+
+&flash0 {
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        /*
+         * Reserve the final 16 KiB for file system partition
+         * 128 KiB --> 131702 bytes
+         * 16 KiB  --> 16384 bytes
+         * Start Addr = 131702 - 16384 --> (HEX) 0x0001c276
+         * Size = 16384 --> (HEX) 0x00004000
+         */
+        storage_partition: partition@1c276 {
+            label = "storage";
+            reg = <0x0001c276 DT_SIZE_K(16)>;
+        };
+    };
+};
+
+&vref {
+    status = "okay";
+};
+
+&vbat {
+    status = "okay";
+};

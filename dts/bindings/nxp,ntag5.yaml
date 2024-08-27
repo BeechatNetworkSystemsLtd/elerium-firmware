@@ -1,0 +1,12 @@
+
+description: NXP nTAG V
+
+compatible: "nxp,ntag5"
+
+include: i2c-device.yaml
+
+properties:
+  ed-gpios:
+    type: phandle-array
+    description: |
+      ED Pin

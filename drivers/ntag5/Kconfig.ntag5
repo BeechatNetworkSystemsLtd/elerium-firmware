@@ -1,0 +1,14 @@
+
+# NXP NTAG5 driver options
+
+menuconfig NTAG5
+	bool "NTAG5 driver support"
+	default y
+	depends on DT_HAS_NXP_NTAG5_ENABLED
+	select I2C
+
+if NTAG5
+
+endif
+
+

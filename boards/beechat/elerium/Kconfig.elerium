@@ -1,0 +1,3 @@
+
+config BOARD_ELERIUM
+    select SOC_STM32L412XX
