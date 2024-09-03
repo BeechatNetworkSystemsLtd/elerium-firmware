@@ -14,7 +14,7 @@
     };
 
     aliases {
-
+        ntag = &ntag;
     };
 };
 

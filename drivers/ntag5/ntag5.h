@@ -177,7 +177,18 @@ struct ntag5_block {
     uint8_t data[NTAG5_MEMORY_BLOCK_SIZE];
 };
 
+struct ntag5_block_spec {
+    uint16_t addr;
+    struct ntag5_block block;
+};
+
+typedef void (*ntag5_ed_callback)(void);
+
 //***************************************************************************//
+
+void ntag5_set_callback(const struct device* dev, ntag5_ed_callback callback);
+
+int ntag5_wait_on_ed(const struct device* dev, k_timeout_t timeout);
 
 int ntag5_write_block(const struct device* dev,
                       uint16_t addr,

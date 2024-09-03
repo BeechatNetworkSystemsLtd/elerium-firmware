@@ -19,7 +19,10 @@ struct ntag5_config {
 };
 
 struct ntag5_data {
-    struct gpio_callback ed_callback;
+    struct gpio_callback ed_gpio_callback;
+    struct k_sem sem;
+    ntag5_ed_callback ed_callback;
+    struct k_work work;
 };
 
 //***************************************************************************//
@@ -209,18 +212,77 @@ int ntag5_format_memory(const struct device* dev) {
 
 //***************************************************************************//
 
+static void ed_work_handler(struct k_work* work) {
+
+    const struct ntag5_data* const data = CONTAINER_OF(work, struct ntag5_data, work);
+
+    if (data->ed_callback != NULL) {
+        data->ed_callback();
+    }
+}
+
 static void
 ed_gpio_interrupt(const struct device* dev, struct gpio_callback* cbdata, uint32_t pins) {
 
     ARG_UNUSED(dev);
     ARG_UNUSED(pins);
 
-    struct ntag5_data* data = CONTAINER_OF(cbdata, struct ntag5_data, ed_callback);
+    struct ntag5_data* const data = CONTAINER_OF(cbdata, struct ntag5_data, ed_gpio_callback);
+
+    k_sem_give(&data->sem);
+
+    k_work_submit(&data->work);
 }
+
+int ntag5_wait_on_ed(const struct device* dev, k_timeout_t timeout) {
+    struct ntag5_data* const data = dev->data;
+    return k_sem_take(&data->sem, timeout);
+}
+
+void ntag5_set_callback(const struct device* dev, ntag5_ed_callback callback) {
+    struct ntag5_data* const data = dev->data;
+    data->ed_callback = callback;
+}
+
+static const struct ntag5_block_spec default_blocks[] = {
+    {
+        .addr = 0x103D,
+        .block = (struct ntag5_block) { .data = { 0x21, 0x00, 0x04, 0x00 } },
+    },
+    {
+        .addr = 0x103C,
+        .block = (struct ntag5_block) { .data = { 0x08, 0x48, 0x01, 0x3F } },
+    },
+    {
+        .addr = 0x1038,
+        .block = (struct ntag5_block) { .data = { 0x3F, 0x00, 0x00, 0x00 } },
+    },
+    {
+        .addr = 0x1092,
+        .block = (struct ntag5_block) { .data = { 0xFF, 0x00, 0x00, 0x00 } },
+    },
+    {
+        .addr = 0x1093,
+        .block = (struct ntag5_block) { .data = { 0xFF, 0x00, 0x00, 0x00 } },
+    },
+    {
+        .addr = 0x1058,
+        .block = (struct ntag5_block) { .data = { 0x00, 0x22, 0x00, 0x00 } },
+    },
+    {
+        .addr = 0x1037,
+        .block = (struct ntag5_block) { .data = { 0x088, 0x8B, 0xCF, 0x00 } },
+    },
+};
 
 static int ntag5_init(const struct device* dev) {
     const struct ntag5_config* config = dev->config;
     struct ntag5_data* data = dev->data;
+
+    data->ed_callback = NULL;
+
+    k_sem_init(&data->sem, 0, 1);
+    k_work_init(&data->work, ed_work_handler);
 
     if (!i2c_is_ready_dt(&config->i2c)) {
         return -ENODEV;
@@ -228,7 +290,7 @@ static int ntag5_init(const struct device* dev) {
 
     if (gpio_is_ready_dt(&config->ed_gpio)) {
         gpio_pin_configure_dt(&config->ed_gpio, GPIO_INPUT);
-        gpio_init_callback(&data->ed_callback, ed_gpio_interrupt, BIT(config->ed_gpio.pin));
+        gpio_init_callback(&data->ed_gpio_callback, ed_gpio_interrupt, BIT(config->ed_gpio.pin));
         gpio_pin_interrupt_configure_dt(&config->ed_gpio, GPIO_INT_EDGE_TO_ACTIVE);
     }
 
@@ -240,54 +302,9 @@ static int ntag5_init(const struct device* dev) {
         ntag5_write_session_reg(
             dev, NTAG5_SESSION_REG_CONFIG, NTAG5_SESSION_REG_BYTE_1, 0x01, 0x00);
 
-        const struct ntag5_block ed_config_block = {
-            .data = {
-                [0] = 0x21, // 1.8V EH, >1.4 mA
-                [1] = 0,
-                [2] = 0x04, // Event - NFC to I2C pass-through
-                [3] = 0,
-            },
-        };
-
-        ntag5_write_block(dev, NTAG5_CONFIG_EH_AND_ED_CONFIG, &ed_config_block, 1);
-
-        const struct ntag5_block wdg_config_block = {
-            .data = {
-                [0] = 0x08, 
-                [1] = 0x48,
-                [2] = 0x01, 
-                [3] = 0x3F,
-            },
-        };
-
-        ntag5_write_block(dev, NTAG5_CONFIG_WDT_CFG_AND_SRAM_COPY, &wdg_config_block, 1);
-
-        const struct ntag5_block sync_config_block = {
-            .data = {
-                [0] = 0x3F, 
-                [1] = 0x00,
-                [2] = 0x00, 
-                [3] = 0x00,
-            },
-        };
-
-        ntag5_write_block(dev, NTAG5_CONFIG_SYNC_DATA_BLOCK, &sync_config_block, 1);
-
-        const struct ntag5_block config_block = {
-            .data = {
-                [0] = NTAG5_CONFIG_0_SRAM_COPY_ENABLE | NTAG5_CONFIG_0_EH_LOW_FIELD_STR,
-                [1] = NTAG5_CONFIG_1_EH_ARBITER_MODE_EN | NTAG5_CONFIG_1_ARBITER_SRAM_PT | NTAG5_CONFIG_1_SRAM_ENABLE | NTAG5_CONFIG_1_PT_TRANSFER_NFC_I2C,
-                [2] = NTAG5_CONFIG_2_GPIO1_IN_ENABLE 
-                    | NTAG5_CONFIG_2_GPIO1_IN_PULL_UP 
-                    | NTAG5_CONFIG_2_EXT_CMD_SUPPORT 
-                    | NTAG5_CONFIG_2_LOCK_BLK_CMD_SUPPORT
-                    | NTAG5_CONFIG_2_GPIO1_HIGH_SLEW_RATE
-                    | NTAG5_CONFIG_2_GPIO0_HIGH_SLEW_RATE,
-                [3] = 0x00,
-            },
-        };
-
-        ntag5_write_block(dev, NTAG5_CONFIG_CONFIG, &config_block, 1);
+        for (size_t i = 0; i < ARRAY_SIZE(default_blocks); ++i) {
+            ntag5_write_block(dev, default_blocks[i].addr, &default_blocks[i].block, 1);
+        }
 
         // PT_TRANSFER_DIR = 0, Data transfer direction is NFC to I2C
         ntag5_write_session_reg(
