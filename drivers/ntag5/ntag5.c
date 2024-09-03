@@ -32,14 +32,14 @@ int ntag5_write_block(const struct device* dev,
                       const struct ntag5_block* block,
                       size_t count) {
 
-    if (((addr + count) > NTAG5_USER_MEMORY_ADDRESS_MAX)
-        && (addr < NTAG5_CONFIG_MEMORY_ADDRESS_MIN)) {
-        return -EINVAL;
-    }
-
-    if ((addr + count) > NTAG5_CONFIG_MEMORY_ADDRESS_MAX) {
-        return -EINVAL;
-    }
+    // if (((addr + count) > NTAG5_USER_MEMORY_ADDRESS_MAX)
+    //     && (addr < NTAG5_CONFIG_MEMORY_ADDRESS_MIN)) {
+    //     return -EINVAL;
+    // }
+    //
+    // if ((addr + count) > NTAG5_CONFIG_MEMORY_ADDRESS_MAX) {
+    //     return -EINVAL;
+    // }
 
     const struct ntag5_config* config = dev->config;
 
@@ -61,7 +61,7 @@ int ntag5_write_block(const struct device* dev,
         rc = i2c_write_dt(&config->i2c, buf, sizeof(buf));
 
         if (rc == 0) {
-            k_sleep(K_MSEC(5));
+            k_sleep(K_MSEC(10));
         } else {
             break;
         }
@@ -75,14 +75,14 @@ int ntag5_read_block(const struct device* dev,
                      struct ntag5_block* block,
                      size_t count) {
 
-    if (((addr + count) > NTAG5_USER_MEMORY_ADDRESS_MAX)
-        && (addr < NTAG5_CONFIG_MEMORY_ADDRESS_MIN)) {
-        return -EINVAL;
-    }
-
-    if ((addr + count) > NTAG5_CONFIG_MEMORY_ADDRESS_MAX) {
-        return -EINVAL;
-    }
+    // if (((addr + count) > NTAG5_USER_MEMORY_ADDRESS_MAX)
+    //     && (addr < NTAG5_CONFIG_MEMORY_ADDRESS_MIN)) {
+    //     return -EINVAL;
+    // }
+    //
+    // if ((addr + count) > NTAG5_CONFIG_MEMORY_ADDRESS_MAX) {
+    //     return -EINVAL;
+    // }
 
     const struct ntag5_config* config = dev->config;
 
@@ -128,7 +128,7 @@ int ntag5_write_session_reg(const struct device* dev,
     const int rc = i2c_write_dt(&config->i2c, buf, sizeof(buf));
 
     if (rc == 0) {
-        k_sleep(K_MSEC(5));
+        k_sleep(K_MSEC(10));
     }
 
     return rc;
@@ -247,14 +247,20 @@ void ntag5_set_callback(const struct device* dev, ntag5_ed_callback callback) {
 static const struct ntag5_block_spec default_blocks[] = {
     {
         .addr = 0x103D,
+        // EH_CONFIG - >4.0mA , EH_ENABLE
+        // ED_CONFIG - Last byte written by NFC; host can read data from
         .block = (struct ntag5_block) { .data = { 0x21, 0x00, 0x04, 0x00 } },
     },
     {
         .addr = 0x103C,
+        // Watchdog timer default
+        // WDT_ENABLE - Enabled
+        // SRAM_COPY_BYTES - Length
         .block = (struct ntag5_block) { .data = { 0x08, 0x48, 0x01, 0x3F } },
     },
     {
         .addr = 0x1038,
+        // SYNCH_DATA_BLOCK
         .block = (struct ntag5_block) { .data = { 0x3F, 0x00, 0x00, 0x00 } },
     },
     {
@@ -267,11 +273,14 @@ static const struct ntag5_block_spec default_blocks[] = {
     },
     {
         .addr = 0x1058,
+        // Write AREA_0_H
+        // Write AREA_0_L
         .block = (struct ntag5_block) { .data = { 0x00, 0x22, 0x00, 0x00 } },
     },
     {
         .addr = 0x1037,
-        .block = (struct ntag5_block) { .data = { 0x088, 0x8B, 0xCF, 0x00 } },
+        // SRAM_COPY_EN
+        .block = (struct ntag5_block) { .data = { 0x88, 0x8B, 0xCF, 0x00 } },
     },
 };
 
@@ -290,7 +299,10 @@ static int ntag5_init(const struct device* dev) {
 
     if (gpio_is_ready_dt(&config->ed_gpio)) {
         gpio_pin_configure_dt(&config->ed_gpio, GPIO_INPUT);
+
         gpio_init_callback(&data->ed_gpio_callback, ed_gpio_interrupt, BIT(config->ed_gpio.pin));
+        gpio_add_callback(config->ed_gpio.port, &data->ed_gpio_callback);
+
         gpio_pin_interrupt_configure_dt(&config->ed_gpio, GPIO_INT_EDGE_TO_ACTIVE);
     }
 
@@ -298,16 +310,18 @@ static int ntag5_init(const struct device* dev) {
     {
         k_sleep(K_MSEC(100));
 
+        int rc = 0;
+
         // PT_TRANSFER_DIR = 0, Data transfer direction is I2C to NFC
-        ntag5_write_session_reg(
+        rc += ntag5_write_session_reg(
             dev, NTAG5_SESSION_REG_CONFIG, NTAG5_SESSION_REG_BYTE_1, 0x01, 0x00);
 
         for (size_t i = 0; i < ARRAY_SIZE(default_blocks); ++i) {
-            ntag5_write_block(dev, default_blocks[i].addr, &default_blocks[i].block, 1);
+            rc += ntag5_write_block(dev, default_blocks[i].addr, &default_blocks[i].block, 1);
         }
 
         // PT_TRANSFER_DIR = 0, Data transfer direction is NFC to I2C
-        ntag5_write_session_reg(
+        rc += ntag5_write_session_reg(
             dev, NTAG5_SESSION_REG_CONFIG, NTAG5_SESSION_REG_BYTE_1, 0x01, 0x01);
     }
 
@@ -323,10 +337,12 @@ static int ntag5_init(const struct device* dev) {
         .ed_gpio = GPIO_DT_SPEC_INST_GET_OR(inst, ed_gpios, { 0 }), \
     };                                                              \
                                                                     \
+    static struct ntag5_data ntag5_data_##inst = { 0 };             \
+                                                                    \
     DEVICE_DT_INST_DEFINE(inst,                                     \
                           &ntag5_init,                              \
                           NULL,                                     \
-                          NULL,                                     \
+                          &ntag5_data_##inst,                       \
                           &ntag5_config_##inst,                     \
                           POST_KERNEL,                              \
                           CONFIG_KERNEL_INIT_PRIORITY_DEVICE,       \

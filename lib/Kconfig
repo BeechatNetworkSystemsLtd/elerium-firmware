@@ -3,6 +3,7 @@ config BEECHAT_ELERIUM_LIB
     bool "Beechat Elerium Library"
     default n
     select EVENTS
+    select CRC
     help
         Beechat Elerium Library
 
