@@ -4,6 +4,8 @@ config BEECHAT_ELERIUM_LIB
     default n
     select EVENTS
     select CRC
+    select NVS
+    select FLASH
     help
         Beechat Elerium Library
 

@@ -11,6 +11,7 @@
     chosen {
         zephyr,sram = &sram0;
         zephyr,flash = &flash0;
+        zephyr,code-partition = &code_partition;
     };
 
     aliases {
@@ -24,6 +25,10 @@
 
 &clk_msi {
     status = "okay";
+};
+
+&rng {
+    status = "disabled";
 };
 
 &rcc {
@@ -58,21 +63,21 @@
 };
 
 &flash0 {
+    status = "okay";
+
     partitions {
         compatible = "fixed-partitions";
         #address-cells = <1>;
         #size-cells = <1>;
 
-        /*
-         * Reserve the final 16 KiB for file system partition
-         * 128 KiB --> 131702 bytes
-         * 16 KiB  --> 16384 bytes
-         * Start Addr = 131702 - 16384 --> (HEX) 0x0001c276
-         * Size = 16384 --> (HEX) 0x00004000
-         */
-        storage_partition: partition@1c276 {
+        code_partition: partition@0 {
+            label = "code";
+            reg = <0x00000000 DT_SIZE_K(56)>;
+        };
+
+        storage_partition: partition@e000 {
             label = "storage";
-            reg = <0x0001c276 DT_SIZE_K(16)>;
+            reg = <0x0000e000 DT_SIZE_K(8)>;
         };
     };
 };
