@@ -3,6 +3,7 @@
 
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 
 #include "elerium/subsys/nfc.h"
 #include "elerium/subsys/wallet.h"
@@ -14,6 +15,10 @@ enum elerium_cmd {
     ELERIUM_CMD_WALLET_SIGN = 0xA1,
     ELERIUM_CMD_WALLET_SEED = 0xA2,
 };
+
+//***************************************************************************//
+
+LOG_MODULE_DECLARE(elerium);
 
 //***************************************************************************//
 
