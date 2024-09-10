@@ -223,6 +223,12 @@ int ntag5_read_message(const struct device* dev,
 
 int ntag5_format_memory(const struct device* dev);
 
+int ntag5_write_ndef_uri_record(const struct device* dev,
+                                uint8_t uri_prefix,
+                                const uint8_t* uri,
+                                uint8_t uri_len);
+
+
 //***************************************************************************//
 
 #endif // DRIVERS_NTAG5_H_

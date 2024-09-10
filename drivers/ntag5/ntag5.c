@@ -210,6 +210,55 @@ int ntag5_format_memory(const struct device* dev) {
     return rc;
 }
 
+int ntag5_write_ndef_uri_record(const struct device* dev,
+                                uint8_t uri_prefix,
+                                const uint8_t* uri,
+                                uint8_t uri_len) {
+
+    int rc = 0;
+
+    struct ntag5_block ndef_block = {
+        .data = { NTAG5_CAPABILITY_CONTAINER },
+    };
+
+    rc += ntag5_write_block(dev, NTAG5_CAPABILITY_CONTAINER_ADDRESS, &ndef_block, 1);
+
+    uint8_t addr = NTAG5_NDEF_MESSAGE_START_ADDRESS;
+    ndef_block.data[0] = NTAG5_TYPE_NDEF_MESSAGE;  // NDEF Message
+    ndef_block.data[1] = uri_len + 5;              // Message size
+    ndef_block.data[2] = NTAG5_NDEF_RECORD_HEADER; // Record header
+    ndef_block.data[3] = NTAG5_NDEF_TYPE_LENGTH;   // Type Length - 1 byte
+    rc += ntag5_write_block(dev, addr++, &ndef_block, 1);
+
+    ndef_block.data[0] = uri_len + 1;         // Payload Length
+    ndef_block.data[1] = NTAG5_NDEF_URI_TYPE; // Type / URI
+    ndef_block.data[2] = uri_prefix;          // URI prefix
+    ndef_block.data[3] = uri[0];              // URI data
+    rc += ntag5_write_block(dev, addr++, &ndef_block, 1);
+
+    uri_len--;
+    while (uri_len >= NTAG5_MEMORY_BLOCK_SIZE) {
+
+        memcpy(ndef_block.data,
+               &uri[(addr - NTAG5_NDEF_MESSAGE_START_ADDRESS - 2) * NTAG5_MEMORY_BLOCK_SIZE + 1],
+               NTAG5_MEMORY_BLOCK_SIZE);
+
+        rc += ntag5_write_block(dev, addr++, &ndef_block, 1);
+        uri_len -= NTAG5_MEMORY_BLOCK_SIZE;
+    }
+
+    memset(ndef_block.data, 0x00, sizeof(ndef_block.data));
+
+    memcpy(ndef_block.data,
+           &uri[(addr - NTAG5_NDEF_MESSAGE_START_ADDRESS - 2) * NTAG5_MEMORY_BLOCK_SIZE + 1],
+           uri_len % NTAG5_MEMORY_BLOCK_SIZE);
+
+    ndef_block.data[uri_len % NTAG5_MEMORY_BLOCK_SIZE] = NTAG5_NDEF_MESSAGE_END_MARK;
+    rc += ntag5_write_block(dev, addr, &ndef_block, 1);
+
+    return rc;
+}
+
 //***************************************************************************//
 
 static void ed_work_handler(struct k_work* work) {
@@ -244,46 +293,6 @@ void ntag5_set_callback(const struct device* dev, ntag5_ed_callback callback) {
     data->ed_callback = callback;
 }
 
-static const struct ntag5_block_spec default_blocks[] = {
-    {
-        .addr = 0x103D,
-        // EH_CONFIG - >4.0mA , EH_ENABLE
-        // ED_CONFIG - Last byte written by NFC; host can read data from
-        .block = (struct ntag5_block) { .data = { 0x21, 0x00, 0x04, 0x00 } },
-    },
-    {
-        .addr = 0x103C,
-        // Watchdog timer default
-        // WDT_ENABLE - Enabled
-        // SRAM_COPY_BYTES - Length
-        .block = (struct ntag5_block) { .data = { 0x08, 0x48, 0x01, 0x3F } },
-    },
-    {
-        .addr = 0x1038,
-        // SYNCH_DATA_BLOCK
-        .block = (struct ntag5_block) { .data = { 0x3F, 0x00, 0x00, 0x00 } },
-    },
-    {
-        .addr = 0x1092,
-        .block = (struct ntag5_block) { .data = { 0xFF, 0x00, 0x00, 0x00 } },
-    },
-    {
-        .addr = 0x1093,
-        .block = (struct ntag5_block) { .data = { 0xFF, 0x00, 0x00, 0x00 } },
-    },
-    {
-        .addr = 0x1058,
-        // Write AREA_0_H
-        // Write AREA_0_L
-        .block = (struct ntag5_block) { .data = { 0x00, 0x22, 0x00, 0x00 } },
-    },
-    {
-        .addr = 0x1037,
-        // SRAM_COPY_EN
-        .block = (struct ntag5_block) { .data = { 0x88, 0x8B, 0xCF, 0x00 } },
-    },
-};
-
 static int ntag5_init(const struct device* dev) {
     const struct ntag5_config* config = dev->config;
     struct ntag5_data* data = dev->data;
@@ -304,25 +313,6 @@ static int ntag5_init(const struct device* dev) {
         gpio_add_callback(config->ed_gpio.port, &data->ed_gpio_callback);
 
         gpio_pin_interrupt_configure_dt(&config->ed_gpio, GPIO_INT_EDGE_TO_ACTIVE);
-    }
-
-    // Default configuration
-    {
-        k_sleep(K_MSEC(100));
-
-        int rc = 0;
-
-        // PT_TRANSFER_DIR = 0, Data transfer direction is I2C to NFC
-        rc += ntag5_write_session_reg(
-            dev, NTAG5_SESSION_REG_CONFIG, NTAG5_SESSION_REG_BYTE_1, 0x01, 0x00);
-
-        for (size_t i = 0; i < ARRAY_SIZE(default_blocks); ++i) {
-            rc += ntag5_write_block(dev, default_blocks[i].addr, &default_blocks[i].block, 1);
-        }
-
-        // PT_TRANSFER_DIR = 0, Data transfer direction is NFC to I2C
-        rc += ntag5_write_session_reg(
-            dev, NTAG5_SESSION_REG_CONFIG, NTAG5_SESSION_REG_BYTE_1, 0x01, 0x01);
     }
 
     return 0;

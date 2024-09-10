@@ -55,9 +55,6 @@ static const char personalize[] = "elerium:wallet";
 static struct {
     struct k_mutex mut;
 
-    uint8_t entropy[TC_AES_KEY_SIZE + TC_AES_BLOCK_SIZE];
-    TCCtrPrng_t prng;
-
     struct nvs_fs fs;
     struct elerium_wallet wallet;
 } mod;
@@ -167,32 +164,6 @@ int save_wallet(const struct elerium_wallet* wallet) {
     return nvs_write(&mod.fs, WALLET_ID, wallet, sizeof(*wallet));
 }
 
-static int init_nvs(void) {
-    int rc;
-
-    struct flash_pages_info info;
-
-    mod.fs.flash_device = NVS_PARTITION_DEVICE;
-    if (!device_is_ready(mod.fs.flash_device)) {
-        return -EBADF;
-    }
-    mod.fs.offset = NVS_PARTITION_OFFSET;
-    rc = flash_get_page_info_by_offs(mod.fs.flash_device, mod.fs.offset, &info);
-    if (rc != 0) {
-        return -EBADF;
-    }
-
-    mod.fs.sector_size = info.size;
-    mod.fs.sector_count = 2U;
-
-    rc = nvs_mount(&mod.fs);
-    if (rc != 0) {
-        return -EBADF;
-    }
-
-    return 0;
-}
-
 int wallet_init(void) {
     int rc;
 
@@ -217,11 +188,6 @@ int wallet_init(void) {
     }
 
     return rc;
-}
-
-int default_CSPRNG(uint8_t* dest, unsigned int size) {
-    int res = tc_ctr_prng_generate(&mod.prng, NULL, 0, dest, size);
-    return res;
 }
 
 //***************************************************************************//

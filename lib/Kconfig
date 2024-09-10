@@ -11,6 +11,15 @@ config BEECHAT_ELERIUM_LIB
 
 if BEECHAT_ELERIUM_LIB
 
+    config BEECHAT_ELERIUM_WALLET
+        bool "Elerium Wallet"
+        default n
+
+
+    config BEECHAT_ELERIUM_URL_SIGN
+        bool "Elerium URL Signer"
+        default n
+
     module = ELERIUM
     module-str = elerium
     source "subsys/logging/Kconfig.template.log_config"

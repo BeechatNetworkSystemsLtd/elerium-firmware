@@ -12,10 +12,6 @@
 
 struct elerium_wallet;
 
-struct elerium_signature {
-    uint8_t data[64];
-};
-
 //***************************************************************************//
 
 int elerium_wallet_create(const uint8_t* passcode, uint8_t* seed);

@@ -6,6 +6,7 @@
 #include <zephyr/logging/log.h>
 
 #include "elerium/subsys/nfc.h"
+#include "elerium/subsys/url_sign.h"
 #include "elerium/subsys/wallet.h"
 
 //***************************************************************************//
@@ -14,6 +15,10 @@ enum elerium_cmd {
     ELERIUM_CMD_WALLET_CREATE = 0xA0,
     ELERIUM_CMD_WALLET_SIGN = 0xA1,
     ELERIUM_CMD_WALLET_SEED = 0xA2,
+
+    ELERIUM_CMD_URL_SIGN_PROGRAM = 0xB0,
+    ELERIUM_CMD_URL_SIGN_PUB_KEY = 0xB1,
+    ELERIUM_CMD_URL_SIGN_DELETE = 0xB2,
 };
 
 //***************************************************************************//
@@ -26,6 +31,8 @@ static int handle_message(const struct elerium_nfc_message* req_msg,
                           struct elerium_nfc_message* res_msg) {
     int rc = -EINVAL;
     switch ((enum elerium_cmd)req_msg->data[0]) {
+
+#if IS_ENABLED(CONFIG_BEECHAT_ELERIUM_WALLET)
         case ELERIUM_CMD_WALLET_CREATE:
             rc = elerium_wallet_create(NULL, &res_msg->data[4]);
             res_msg->length = 4 + 32;
@@ -38,6 +45,17 @@ static int handle_message(const struct elerium_nfc_message* req_msg,
             rc = elerium_wallet_sign(
                 elerium_wallet_get(NULL), &req_msg->data[4], 32, &res_msg->data[4]);
             res_msg->length = 4 + 64;
+            break;
+#endif
+
+#if IS_ENABLED(CONFIG_BEECHAT_ELERIUM_URL_SIGN)
+
+        case ELERIUM_CMD_URL_SIGN_PROGRAM:
+
+            break;
+
+#endif
+        default:
             break;
     }
     return rc;
