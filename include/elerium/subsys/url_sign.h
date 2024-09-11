@@ -11,6 +11,12 @@
 //***************************************************************************//
 
 int elerium_url_sign_get_pub(struct elerium_pub_key* pub_key);
+int elerium_url_sign_get_pub_raw(uint8_t* data, size_t cap);
+
+int elerium_url_sign_generate(void);
+
+int elerium_url_sign_program(const char* password, const char* url);
+int elerium_url_sign_reset(const char* password);
 
 //***************************************************************************//
 

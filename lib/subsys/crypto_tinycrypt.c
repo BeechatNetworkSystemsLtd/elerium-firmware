@@ -46,8 +46,25 @@ int elerium_crypto_sign(struct elerium_priv_key* priv_key,
     __ASSERT_NO_MSG(sign != NULL);
 
     const int rc = uECC_sign(priv_key->data, hash, hash_len, sign->data, uECC_secp256r1());
+
     return (rc == TC_CRYPTO_SUCCESS) ? 0 : -EFAULT;
 }
+
+
+int elerium_crypto_verify(struct elerium_pub_key* pub_key,
+                          const void* hash,
+                          size_t hash_len,
+                          const struct elerium_signature* sign) {
+
+    __ASSERT_NO_MSG(pub_key != NULL);
+    __ASSERT_NO_MSG(hash != NULL);
+    __ASSERT_NO_MSG(sign != NULL);
+
+    const int rc = uECC_verify(pub_key->data, hash, hash_len, sign->data, uECC_secp256r1());
+
+    return (rc == TC_CRYPTO_SUCCESS) ? 0 : -EFAULT;
+}
+
 
 int elerium_crypto_sha256(const void* data, size_t data_len, struct elerium_hash* hash) {
     int rc = 0;
@@ -94,6 +111,8 @@ int crypto_init(void) {
     if (rc == TC_CRYPTO_SUCCESS) {
         rc = 0;
     }
+
+    uECC_set_rng(&default_CSPRNG);
 
     return rc;
 }

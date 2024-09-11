@@ -33,13 +33,11 @@ static int parse_message(struct elerium_nfc_message* message);
 SYS_INIT(nfc_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
 // Devices
-
 static const struct device* const ntag_dev = DEVICE_DT_GET(DT_ALIAS(ntag));
 
 // Static Data
-
 static const uint8_t magic_pattern[] = { 0xE1, 0xED };
-static uint8_t message_queue_buffer[sizeof(struct elerium_nfc_message)] = { 0 };
+static uint8_t message_queue_buffer[sizeof(struct elerium_nfc_message) * 4] = { 0 };
 
 // NTAG Configuration
 static const struct ntag5_block_spec ntag_config_blocks[] = {
@@ -47,7 +45,7 @@ static const struct ntag5_block_spec ntag_config_blocks[] = {
         .addr = 0x103D,
         // EH_CONFIG - >4.0mA , EH_ENABLE
         // ED_CONFIG - Last byte written by NFC; host can read data from
-        .block = (struct ntag5_block) { .data = { 0x25, 0x00, 0x09, 0x00 } },
+        .block = (struct ntag5_block) { .data = { 0x21, 0x00, 0x09, 0x00 } },
     },
     {
         .addr = 0x103C,
@@ -87,6 +85,7 @@ static struct {
     struct k_mutex mut;
     struct elerium_nfc_message message;
     struct k_msgq queue;
+    uint32_t last_ed_time;
 } mod;
 
 //***************************************************************************//
@@ -154,6 +153,7 @@ int elerium_nfc_set_ndef_url(const char* url, size_t url_len) {
 
     __ASSERT_NO_MSG(url != NULL);
     __ASSERT_NO_MSG(url_len > 0);
+
     int rc;
 
     rc = ntag5_write_session_reg(
@@ -172,16 +172,37 @@ int elerium_nfc_set_ndef_url(const char* url, size_t url_len) {
 //***************************************************************************//
 
 void nfc_ed_callback(void) {
-    int rc;
 
-    rc = parse_message(&mod.message);
+    uint8_t ed_config = 0;
+    (void)ntag5_read_session_reg(
+        ntag_dev, NTAG5_SESSION_REG_ED_CONFIG, NTAG5_SESSION_REG_BYTE_0, &ed_config);
 
-    if (rc == 0) {
-        rc = k_msgq_put(&mod.queue, &mod.message, K_MSEC(250));
-    }
+    ed_config = ed_config & 0x0F;
+    if (ed_config != 0x04) {
 
-    if (rc != 0) {
-        nfc_control_switch();
+        if ((k_uptime_get_32() - mod.last_ed_time) > 2000) {
+
+            mod.last_ed_time = k_uptime_get_32();
+
+            memset(&mod.message, 0x00, sizeof(mod.message));
+            mod.message.type = ELERIUM_NFC_MESSAGE_TYPE_NDEF;
+
+            k_msgq_put(&mod.queue, &mod.message, K_MSEC(250));
+        }
+
+    } else {
+        int rc;
+
+        rc = parse_message(&mod.message);
+
+        if (rc == 0) {
+            mod.message.type = ELERIUM_NFC_MESSAGE_TYPE_COMM;
+            rc = k_msgq_put(&mod.queue, &mod.message, K_MSEC(1000));
+        }
+
+        if (rc != 0) {
+            nfc_control_switch();
+        }
     }
 }
 
@@ -189,12 +210,10 @@ int nfc_init(void) {
     int rc = -ENODEV;
 
     k_mutex_init(&mod.mut);
-    k_msgq_init(&mod.queue, message_queue_buffer, sizeof(struct elerium_nfc_message), 1);
+    k_msgq_init(&mod.queue, message_queue_buffer, sizeof(struct elerium_nfc_message), 4);
 
     if (device_is_ready(ntag_dev)) {
         ntag5_set_callback(ntag_dev, nfc_ed_callback);
-
-        k_sleep(K_MSEC(100));
 
         rc = 0;
 
@@ -207,18 +226,9 @@ int nfc_init(void) {
                 ntag_dev, ntag_config_blocks[i].addr, &ntag_config_blocks[i].block, 1);
         }
 
-        const auto uint64_t rnd_number = elerium_crypto_random();
-        char url[256];
-        snprintk(url, sizeof(url), "%llu.test", rnd_number);
-
-        rc = ntag5_write_ndef_uri_record(ntag_dev, NTAG5_URI_PREFIX_4, url, strlen(url));
-
         // PT_TRANSFER_DIR = 1, Data transfer direction is NFC to I2C
         rc += ntag5_write_session_reg(
             ntag_dev, NTAG5_SESSION_REG_CONFIG, NTAG5_SESSION_REG_BYTE_1, 0x01, 0x01);
-
-        rc += ntag5_write_session_reg(
-            ntag_dev, NTAG5_SESSION_REG_RESET_GEN, NTAG5_SESSION_REG_BYTE_0, 0xE7, 0xE7);
     }
 
     return rc;

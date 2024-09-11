@@ -13,6 +13,7 @@
 #define ELERIUM_NFC_MESSAGE_SIZE (ELERIUM_NFC_SRAM_SIZE - ELERIUM_NFC_HEADER_SIZE)
 
 #define ELERIUM_NFC_MESSAGE_FLAG_OK BIT(0)
+#define ELERIUM_NFC_MESSAGE_FLAG_ERR BIT(1)
 
 //***************************************************************************//
 
