@@ -29,6 +29,7 @@ struct url_sign_data {
 
 static int url_sign_init(void);
 static int generate_url(void);
+static int set_default_url(void);
 
 //***************************************************************************//
 
@@ -76,6 +77,8 @@ int elerium_url_sign_generate(void) {
 
     if (mod.sign_data.enabled) {
         rc = 0;
+    } else {
+        (void)set_default_url();
     }
 
     if (rc == 0) {
@@ -141,6 +144,9 @@ int elerium_url_sign_reset(const char* password) {
 
     // Password is correct
     if (rc == 0) {
+
+        (void)set_default_url();
+
         elerium_storage_delete(URL_DATA_ID);
         memset(&mod.sign_data, 0x00, sizeof(mod.sign_data));
         mod.sign_data.enabled = false;
@@ -152,6 +158,12 @@ int elerium_url_sign_reset(const char* password) {
 }
 
 //***************************************************************************//
+
+int set_default_url(void) {
+    (void)snprintk(
+        url_buffer, sizeof(url_buffer), "%s", CONFIG_BEECHAT_ELERIUM_URL_SIGN_DEFAULT_URI);
+    return elerium_nfc_set_ndef_url(url_buffer, strlen(url_buffer));
+}
 
 int generate_url(void) {
     int rc;

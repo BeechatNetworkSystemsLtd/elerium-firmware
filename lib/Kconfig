@@ -20,6 +20,10 @@ if BEECHAT_ELERIUM_LIB
         bool "Elerium URL Signer"
         default n
 
+    config BEECHAT_ELERIUM_URL_SIGN_DEFAULT_URI
+        string "Default URI"
+        default "beechat.network"
+
     module = ELERIUM
     module-str = elerium
     source "subsys/logging/Kconfig.template.log_config"
