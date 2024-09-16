@@ -95,6 +95,9 @@ int elerium_url_sign_generate(void) {
 int elerium_url_sign_program(const char* password, const char* url) {
     int rc = -EAGAIN;
 
+    __ASSERT_NO_MSG(password != NULL);
+    __ASSERT_NO_MSG(url != NULL);
+
     k_mutex_lock(&mod.mut, K_FOREVER);
 
     if (!mod.sign_data.enabled) {
@@ -119,19 +122,23 @@ int elerium_url_sign_program(const char* password, const char* url) {
 
 int elerium_url_sign_reset(const char* password) {
     int rc;
-    struct elerium_hash password_hash;
+
+    __ASSERT_NO_MSG(password != NULL);
+
+    struct elerium_hash password_hash = { 0 };
     rc = elerium_crypto_sha256(password, strlen(password), &password_hash);
 
     k_mutex_lock(&mod.mut, K_FOREVER);
 
     if (rc == 0) {
 
-        // rc = -EPERM;
-        // if (memcmp(&password_hash, &mod.sign_data.password_hash, sizeof(password_hash)) == 0) {
-        //     rc = 0;
-        // }
+        rc = -EPERM;
+        if (memcmp(&password_hash, &mod.sign_data.password_hash, sizeof(password_hash)) == 0) {
+            rc = 0;
+        }
     }
 
+    // Password is correct
     if (rc == 0) {
         elerium_storage_delete(URL_DATA_ID);
         memset(&mod.sign_data, 0x00, sizeof(mod.sign_data));
@@ -152,18 +159,18 @@ int generate_url(void) {
 
     int size = snprintk(url_buffer, sizeof(url_buffer), "%llu", rnd_number);
 
-    rc = elerium_crypto_sha256(url_buffer, strlen(url_buffer), &rnd_number_hash);
+    if (size > 0) {
+        // TODO: change to 'size' instead of strlen()
+        rc = elerium_crypto_sha256(url_buffer, strlen(url_buffer), &rnd_number_hash);
+    } else {
+        rc = -EMSGSIZE;
+    }
 
     if (rc == 0) {
         rc = elerium_crypto_sign(&mod.key_pair.priv,
                                  rnd_number_hash.data,
                                  sizeof(rnd_number_hash.data),
                                  &rnd_number_sign);
-
-        // rc = elerium_crypto_verify(&mod.key_pair.pub,
-        //                            rnd_number_hash.data,
-        //                            sizeof(rnd_number_hash.data),
-        //                            &rnd_number_sign);
     }
 
     if (rc == 0) {
@@ -185,6 +192,8 @@ int generate_url(void) {
                         mod.sign_data.url,
                         rnd_number,
                         url_sign_hex_buffer);
+
+        rc = (size > 0) ? 0 : -EMSGSIZE;
     }
 
     return rc;

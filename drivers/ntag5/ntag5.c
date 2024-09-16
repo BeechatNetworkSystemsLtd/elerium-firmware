@@ -32,15 +32,6 @@ int ntag5_write_block(const struct device* dev,
                       const struct ntag5_block* block,
                       size_t count) {
 
-    // if (((addr + count) > NTAG5_USER_MEMORY_ADDRESS_MAX)
-    //     && (addr < NTAG5_CONFIG_MEMORY_ADDRESS_MIN)) {
-    //     return -EINVAL;
-    // }
-    //
-    // if ((addr + count) > NTAG5_CONFIG_MEMORY_ADDRESS_MAX) {
-    //     return -EINVAL;
-    // }
-
     const struct ntag5_config* config = dev->config;
 
     int rc = 0;
@@ -74,15 +65,6 @@ int ntag5_read_block(const struct device* dev,
                      uint16_t addr,
                      struct ntag5_block* block,
                      size_t count) {
-
-    // if (((addr + count) > NTAG5_USER_MEMORY_ADDRESS_MAX)
-    //     && (addr < NTAG5_CONFIG_MEMORY_ADDRESS_MIN)) {
-    //     return -EINVAL;
-    // }
-    //
-    // if ((addr + count) > NTAG5_CONFIG_MEMORY_ADDRESS_MAX) {
-    //     return -EINVAL;
-    // }
 
     const struct ntag5_config* config = dev->config;
 
