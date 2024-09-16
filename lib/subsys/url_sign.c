@@ -100,6 +100,7 @@ int elerium_url_sign_program(const char* password, const char* url) {
 
     k_mutex_lock(&mod.mut, K_FOREVER);
 
+    // Check if URL signer already enabled
     if (!mod.sign_data.enabled) {
         rc = 0;
     }
@@ -107,7 +108,7 @@ int elerium_url_sign_program(const char* password, const char* url) {
     if (rc == 0) {
         elerium_crypto_sha256(password, strlen(password), &mod.sign_data.password_hash);
 
-        strncpy(mod.sign_data.url, url, sizeof(mod.sign_data.url));
+        strncpy(mod.sign_data.url, url, sizeof(mod.sign_data.url) - 1);
 
         mod.sign_data.enabled = true;
         rc = elerium_storage_save(URL_DATA_ID, &mod.sign_data, sizeof(mod.sign_data));
