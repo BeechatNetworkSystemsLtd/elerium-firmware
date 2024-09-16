@@ -46,6 +46,8 @@ static struct {
     struct k_mutex mut;
     struct elerium_key_pair key_pair;
     struct url_sign_data sign_data;
+    struct k_work_delayable generate_work;
+    struct k_work_delayable reset_work;
 } mod;
 
 //***************************************************************************//
@@ -121,6 +123,10 @@ int elerium_url_sign_program(const char* password, const char* url) {
 
     k_mutex_unlock(&mod.mut);
 
+    if (rc == 0) {
+        k_work_schedule(&mod.generate_work, K_MSEC(2000));
+    }
+
     return rc;
 }
 
@@ -144,15 +150,16 @@ int elerium_url_sign_reset(const char* password) {
 
     // Password is correct
     if (rc == 0) {
-
-        (void)set_default_url();
-
         elerium_storage_delete(URL_DATA_ID);
         memset(&mod.sign_data, 0x00, sizeof(mod.sign_data));
         mod.sign_data.enabled = false;
     }
 
     k_mutex_unlock(&mod.mut);
+
+    if (rc == 0) {
+        k_work_schedule(&mod.reset_work, K_MSEC(2500));
+    }
 
     return rc;
 }
@@ -228,10 +235,29 @@ static int init_key(void) {
     return rc;
 }
 
+static void generate_work(struct k_work* work) {
+    ARG_UNUSED(work);
+
+    (void)elerium_url_sign_generate();
+}
+
+static void reset_work(struct k_work* work) {
+    ARG_UNUSED(work);
+
+    k_mutex_lock(&mod.mut, K_FOREVER);
+
+    set_default_url();
+
+    k_mutex_unlock(&mod.mut);
+}
+
 int url_sign_init(void) {
     int rc;
 
     k_mutex_init(&mod.mut);
+
+    k_work_init_delayable(&mod.generate_work, &generate_work);
+    k_work_init_delayable(&mod.reset_work, &reset_work);
 
     rc = init_key();
 
@@ -245,8 +271,11 @@ int url_sign_init(void) {
 
         rc = 0;
 
-        // Generate new url if enabled
-        (void)elerium_url_sign_generate();
+        if (mod.sign_data.enabled) {
+            (void)elerium_url_sign_generate();
+        } else {
+            (void)set_default_url();
+        }
     }
 
     return rc;
