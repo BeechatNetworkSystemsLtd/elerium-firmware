@@ -45,7 +45,7 @@ static const struct ntag5_block_spec ntag_config_blocks[] = {
         .addr = 0x103D,
         // EH_CONFIG - >4.0mA , EH_ENABLE
         // ED_CONFIG - Last byte written by NFC; host can read data from
-        .block = (struct ntag5_block) { .data = { 0x21, 0x00, 0x09, 0x00 } },
+        .block = (struct ntag5_block) { .data = { 0x25, 0x00, 0x09, 0x00 } },
     },
     {
         .addr = 0x103C,
