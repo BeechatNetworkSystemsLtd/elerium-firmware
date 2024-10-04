@@ -1,5 +1,5 @@
 board:
-  name: elerium
+  name: elerium_l4
   vendor: beechat
   socs:
     - name: stm32l412xx

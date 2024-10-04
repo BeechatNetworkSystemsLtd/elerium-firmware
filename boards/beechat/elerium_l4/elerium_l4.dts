@@ -6,7 +6,7 @@
 
 / {
     model = "Beechat Elerium Board";
-    compatible = "beechat,elerium";
+    compatible = "beechat,elerium-l4";
 
     chosen {
         zephyr,sram = &sram0;

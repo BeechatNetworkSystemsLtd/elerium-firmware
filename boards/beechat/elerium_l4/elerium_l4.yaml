@@ -1,5 +1,5 @@
-identifier: elerium
-name: Beechat Elerium NFC
+identifier: elerium_l4
+name: Beechat Elerium NFC L4
 type: mcu
 arch: arm
 toolchain:
