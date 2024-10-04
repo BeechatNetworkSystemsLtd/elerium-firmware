@@ -8,9 +8,9 @@
 
 //***************************************************************************//
 
-int elerium_storage_load(uint16_t key, const void* data, size_t len);
+int elerium_storage_load(uint16_t key, void* data, size_t len);
 
-int elerium_storage_save(uint16_t key, void* data, size_t len);
+int elerium_storage_save(uint16_t key, const void* data, size_t len);
 
 int elerium_storage_delete(uint16_t key);
 

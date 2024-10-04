@@ -33,7 +33,7 @@ static struct {
 
 //***************************************************************************//
 
-int elerium_storage_load(uint16_t key, const void* data, size_t len) {
+int elerium_storage_load(uint16_t key, void* data, size_t len) {
 
     __ASSERT_NO_MSG(data != NULL);
     __ASSERT_NO_MSG(len > 0);
@@ -52,7 +52,7 @@ int elerium_storage_load(uint16_t key, const void* data, size_t len) {
     return rc;
 }
 
-int elerium_storage_save(uint16_t key, void* data, size_t len) {
+int elerium_storage_save(uint16_t key, const void* data, size_t len) {
 
     __ASSERT_NO_MSG(data != NULL);
     __ASSERT_NO_MSG(len > 0);
