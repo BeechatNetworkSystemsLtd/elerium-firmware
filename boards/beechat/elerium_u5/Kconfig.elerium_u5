@@ -1,0 +1,4 @@
+
+config BOARD_ELERIUM_U5
+    select SOC_STM32U585XX
+
