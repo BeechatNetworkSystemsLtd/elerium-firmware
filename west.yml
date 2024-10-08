@@ -5,6 +5,8 @@ manifest:
   remotes:
     - name: zephyrproject-rtos
       url-base: https://github.com/zephyrproject-rtos
+    - name: ElementsProject
+      url-base: https://github.com/ElementsProject
 
   projects:
     - name: zephyr
@@ -20,4 +22,8 @@ manifest:
       remote: zephyrproject-rtos
       revision: fb2cf0ec3da3687b93f28e556ab682bdd4b85223
       path: mcuboot
+    - name: libwally-core
+      remote: ElementsProject
+      revision: release_1.3.1
+      path: libwally-core
 
